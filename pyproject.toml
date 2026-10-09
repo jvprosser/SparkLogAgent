@@ -2,11 +2,11 @@
 name = "sparklogagent"
 version = "0.1.0"
 description = "Spark troubleshooting agent assets, YARN log utility, and log MCP"
-requires-python = ">=3.10"
-dependencies = ["mcp>=2.3,<3"]
+requires-python = ">=3.8"
 
 [project.optional-dependencies]
-dev = ["pytest"]
+mcp = ["mcp>=2.3,<3"]
+dev = ["pytest", "mcp>=2.3,<3"]
 
 [project.scripts]
 spark-logs-utility = "log_utility.server:main"

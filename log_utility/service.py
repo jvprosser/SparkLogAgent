@@ -143,7 +143,7 @@ def _bearer_ok(header: str, token: str) -> bool:
 
     if not token or not header.startswith("Bearer "):
         return False
-    return secrets.compare_digest(header.removeprefix("Bearer "), token)
+    return secrets.compare_digest(header[len("Bearer ") :], token)
 
 
 def _route(path: str) -> tuple[str | None, str | None]:

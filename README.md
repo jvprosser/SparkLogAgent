@@ -33,14 +33,32 @@ flowchart LR
 
 Run the utility on a host that has the `yarn` client, `kinit`, `krb5.conf`, and a route to the KDC. It obtains a ticket for the workflow principal, runs `yarn logs` with that credential cache, and destroys the cache.
 
+`spark-logs-utility` is the console script installed with this package. It is not on `PATH` until you install. The utility uses the Python standard library, so this install does not pull in the `mcp` package. From a checkout of this repo, with Python 3.8 or newer:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install .
+```
+
+The same install with uv:
+
+```bash
+uv venv --python 3.12 .venv
+uv pip install --python .venv/bin/python .
+```
+
+Then start the server:
+
 ```bash
 export SPARK_LOGS_API_TOKEN="replace-me"
 export SPARK_LOGS_TLS_CERT="/path/server.pem"
 export SPARK_LOGS_TLS_KEY="/path/server.key"
 export SPARK_LOGS_BIND="0.0.0.0"
 export SPARK_LOGS_PORT="8443"
-spark-logs-utility
+.venv/bin/spark-logs-utility
 ```
+
+Activate `.venv` first if you want to run `spark-logs-utility` without the path prefix. The script starts `log_utility.server:main` and listens for HTTPS `POST` requests.
 
 `SPARK_LOGS_BIND` defaults to `127.0.0.1`. Set it to an address the workbench can reach, and keep that port on a network that only the workbench uses.
 
@@ -60,13 +78,43 @@ In Agent Studio, open Tools Catalog, then MCP Servers, and register each JSON fi
 
 Enable the History Server tools and both log tools named in [agent/spark_advisor.md](agent/spark_advisor.md). Leave History Server tools that write configuration, and the AWS recommendation tools, off.
 
+## Configuring an Agent
+
+Paste these fields into the CrewAI agent in Agent Studio. Attach the spark-logs MCP server and enable `list_container_logs` and `get_application_logs`.
+
+### Name
+
+Spark Log Advisor
+
+### Role
+
+Spark application log investigator for completed YARN jobs.
+
+### Goal
+
+Answer the user's Spark troubleshooting or optimization question from the completed application's YARN logs. When the user has not given a YARN application id of the form `application_<timestamp>_<id>`, ask for it before calling a tool. Call `list_container_logs` with that application id first and use the result to choose a container. Then call `get_application_logs` for the containers that explain the failure or the slow stage. Set `log_type` to `stderr` for exceptions and `stdout` for application output. Set `pattern` to a literal string from the failure, such as `Exception` or `WARN`, and set `tail_lines` so the returned tail stays small. Set `app_owner` to the YARN user who submitted the application when that user is not the workflow principal. Quote the container and the log lines that support each recommendation.
+
+### Backstory
+
+You debug completed Spark applications from their aggregated YARN container logs. Driver and executor text is available through the spark-logs tools. `list_container_logs` takes an application id such as `application_1700000000000_0001` and lists the containers that have logs. `get_application_logs` returns a capped tail of decoded stdout or stderr for one application, and optionally one container. You list containers before you fetch text, then you narrow with `container_id`, `log_type`, and a literal `pattern` so the tail contains the stack trace or warning you need. The tools do not take a password or a History Server URL. You treat each tool result as the log evidence. When a tool returns an error, you report that error and stop rather than filling in a stack trace from memory. A configuration or code change is ready to recommend once a returned log line shows the cause, and the answer names the container and that line.
+
 ## Workflow
 
-Create one conversational workflow and leave the manager agent off. Paste the role, goal, backstory, task, and expected output from [agent/spark_advisor.md](agent/spark_advisor.md).
+Create one conversational workflow and leave the manager agent off. Paste Name, Role, Backstory, and Goal from Configuring an Agent. Paste the task and expected output from [agent/spark_advisor.md](agent/spark_advisor.md).
 
 Every chat uses the workload principal stored on the workflow. YARN log ACLs apply to that principal. The password is stored in the workflow MCP configuration, sent to the utility in the request body, and never included in a tool argument.
 
 ## Development
+
+Tests import the MCP server, which needs Python 3.10 or newer and the `mcp` extra.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+.venv/bin/pytest
+```
+
+The same setup with uv:
 
 ```bash
 uv venv --python 3.12 .venv
