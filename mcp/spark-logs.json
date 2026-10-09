@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "spark-logs": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/jvprosser/SparkLogAgent.git",
+        "spark-logs-mcp"
+      ],
+      "env": {
+        "SPARK_LOGS_API_URL": "https://spark-logs-utility.example:8443",
+        "SPARK_LOGS_API_TOKEN": "placeholder-token",
+        "SPARK_LOGS_CA_CERT": "/path/to/utility-ca.pem",
+        "WORKLOAD_USER": "placeholder-user",
+        "WORKLOAD_PASSWORD": "placeholder-password"
+      }
+    }
+  }
+}

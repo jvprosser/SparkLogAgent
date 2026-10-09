@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "spark-history": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/jvprosser/mcp-apache-spark-history-server.git@e058c872832c3d5e76ddf5e35cb347ad96b6e86e",
+        "spark-mcp"
+      ],
+      "env": {
+        "SHS_MCP__TRANSPORT": "stdio",
+        "SHS_SERVERS__LOCAL__URL": "http://spark-history-server:18080",
+        "SHS_SERVERS__LOCAL__AUTH__USERNAME": "placeholder-user",
+        "SHS_SERVERS__LOCAL__AUTH__PASSWORD": "placeholder-password",
+        "SHS_SERVERS__LOCAL__VERIFY_SSL": "true"
+      }
+    }
+  }
+}
