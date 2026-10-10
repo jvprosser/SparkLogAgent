@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "spark-logs": {
+    "Spark Logs MCP Server": {
       "command": "uvx",
       "args": [
         "--from",
