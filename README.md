@@ -33,7 +33,7 @@ flowchart LR
 
 Run the utility on a host that has the `yarn` client, `kinit`, `krb5.conf`, and a route to the KDC. It obtains a ticket for the workflow principal, runs `yarn logs` with that credential cache, and destroys the cache.
 
-`spark-logs-utility` is the console script installed with this package. It is not on `PATH` until you install. The utility uses the Python standard library, so this install does not pull in the `mcp` package. From a checkout of this repo, with Python 3.8 or newer:
+`spark-logs-utility` is the console script installed with this package. It is not on `PATH` until you install. On Python 3.8 and 3.9 the install skips the `mcp` package. Python 3.10 and newer installs it, because that is what `spark-logs-mcp` imports. From a checkout of this repo, with Python 3.8 or newer:
 
 ```bash
 python3 -m venv .venv
@@ -106,7 +106,7 @@ Every chat uses the workload principal stored on the workflow. YARN log ACLs app
 
 ## Development
 
-Tests import the MCP server, which needs Python 3.10 or newer and the `mcp` extra.
+Tests import the MCP server, which needs Python 3.10 or newer.
 
 ```bash
 python3 -m venv .venv
