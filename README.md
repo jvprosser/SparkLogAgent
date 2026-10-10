@@ -74,7 +74,7 @@ Application and container ids are checked against the YARN id pattern and passed
 In Agent Studio, open Tools Catalog, then MCP Servers, and register each JSON file. Use placeholder values in the file. Agent Studio asks for the real values when you attach the server to the agent.
 
 - [mcp/spark-history-server.json](mcp/spark-history-server.json) is pinned to commit `e058c872832c3d5e76ddf5e35cb347ad96b6e86e`. Set `SHS_SERVERS__LOCAL__URL` to the History Server. Fill the auth variables when that server requires them.
-- [mcp/spark-logs.json](mcp/spark-logs.json) points at this repository. Set `SPARK_LOGS_API_URL` to the utility's `https://` address, `SPARK_LOGS_API_TOKEN` to the same token the utility uses, and `SPARK_LOGS_CA_CERT` when the utility certificate is signed by a private CA. `WORKLOAD_USER` and `WORKLOAD_PASSWORD` are the on-prem Kerberos principal and password.
+- [mcp/spark-logs.json](mcp/spark-logs.json) points at this repository. Set `SPARK_LOGS_API_URL` to the utility's `https://` address and `SPARK_LOGS_API_TOKEN` to the same token the utility uses. For a certificate the workbench does not already trust, paste `server.pem` into `SPARK_LOGS_CA_PEM`. Use `SPARK_LOGS_CA_CERT` instead when that file is already on the workbench. `WORKLOAD_USER` and `WORKLOAD_PASSWORD` are the on-prem Kerberos principal and password.
 
 Enable the History Server tools and both log tools named in [agent/spark_advisor.md](agent/spark_advisor.md). Leave History Server tools that write configuration, and the AWS recommendation tools, off.
 

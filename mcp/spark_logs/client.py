@@ -40,6 +40,24 @@ def get_application_logs(
     return _post(f"/applications/{application_id}/logs/content", payload)
 
 
+def ssl_context() -> ssl.SSLContext:
+    """Trust the default CAs, plus a pasted PEM or a CA file when one is set."""
+    context = ssl.create_default_context()
+    pem = os.environ.get("SPARK_LOGS_CA_PEM", "").strip()
+    if pem:
+        if "\\n" in pem:
+            pem = pem.replace("\\n", "\n")
+        try:
+            context.load_verify_locations(cadata=pem)
+        except ssl.SSLError as exc:
+            raise ClientError("SPARK_LOGS_CA_PEM is not a valid certificate") from exc
+        return context
+    ca_cert = os.environ.get("SPARK_LOGS_CA_CERT", "").strip()
+    if ca_cert:
+        context.load_verify_locations(cafile=ca_cert)
+    return context
+
+
 def _post(path: str, payload: dict[str, Any]) -> str:
     base = os.environ.get("SPARK_LOGS_API_URL", "").rstrip("/")
     if not base.startswith("https://"):
@@ -59,10 +77,7 @@ def _post(path: str, payload: dict[str, Any]) -> str:
             "Content-Type": "application/json",
         },
     )
-    context = ssl.create_default_context()
-    ca_cert = os.environ.get("SPARK_LOGS_CA_CERT")
-    if ca_cert:
-        context.load_verify_locations(ca_cert)
+    context = ssl_context()
     try:
         with urllib.request.urlopen(request, context=context, timeout=120) as response:
             parsed = json.loads(response.read().decode())

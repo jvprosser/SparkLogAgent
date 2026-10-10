@@ -1,10 +1,11 @@
 import asyncio
 import json
+import subprocess
 from unittest.mock import patch
 
 import pytest
 
-from spark_logs.client import ClientError, get_application_logs, list_container_logs
+from spark_logs.client import ClientError, get_application_logs, list_container_logs, ssl_context
 from spark_logs.server import create_server
 
 
@@ -15,6 +16,40 @@ def test_client_refuses_plaintext(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("WORKLOAD_PASSWORD", "s3cret-value")
     with pytest.raises(ClientError, match="https://"):
         list_container_logs("application_1700000000000_0001")
+
+
+def test_ca_pem_is_trusted_when_newlines_are_escaped(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    cert = tmp_path / "server.pem"
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-keyout",
+            str(tmp_path / "server.key"),
+            "-out",
+            str(cert),
+            "-days",
+            "1",
+            "-nodes",
+            "-subj",
+            "/CN=spark-logs-test",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    monkeypatch.setenv("SPARK_LOGS_CA_PEM", cert.read_text().replace("\n", "\\n"))
+    monkeypatch.delenv("SPARK_LOGS_CA_CERT", raising=False)
+    subjects = [str(item.get("subject", "")) for item in ssl_context().get_ca_certs()]
+    assert any("spark-logs-test" in subject for subject in subjects)
+
+
+def test_invalid_ca_pem_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPARK_LOGS_CA_PEM", "-----BEGIN CERTIFICATE-----\\nnot-a-cert\\n-----END CERTIFICATE-----")
+    with pytest.raises(ClientError, match="SPARK_LOGS_CA_PEM"):
+        ssl_context()
 
 
 def test_client_sends_password_in_body_not_url(monkeypatch: pytest.MonkeyPatch) -> None:
