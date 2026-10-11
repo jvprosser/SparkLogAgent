@@ -53,6 +53,15 @@ def _post(service: LogService, path: str, payload: dict, token: str = "token") -
     return service.handle("POST", path, {"Authorization": f"Bearer {token}"}, body)
 
 
+def test_status_uses_the_configured_git_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPARK_LOGS_GIT_VERSION", "abc123")
+    monkeypatch.setattr("log_utility.version._commit_from_install", lambda: None)
+    service = _service(tmp_path, monkeypatch)
+    status, payload = service.handle("GET", "/status", {"Authorization": "Bearer token"}, b"")
+    assert status == 200
+    assert payload["git_version"] == "abc123"
+
+
 def test_status_does_not_request_a_ticket(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service = _service(tmp_path, monkeypatch)
     status, payload = service.handle("GET", "/status", {"Authorization": "Bearer token"}, b"")
