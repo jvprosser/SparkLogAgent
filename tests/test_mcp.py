@@ -46,6 +46,41 @@ def test_ca_pem_is_trusted_when_newlines_are_escaped(monkeypatch: pytest.MonkeyP
     assert any("spark-logs-test" in subject for subject in subjects)
 
 
+def test_ca_pem_is_trusted_when_it_is_one_line(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+    cert = tmp_path / "server.pem"
+    subprocess.run(
+        [
+            "openssl",
+            "req",
+            "-x509",
+            "-newkey",
+            "rsa:2048",
+            "-keyout",
+            str(tmp_path / "server.key"),
+            "-out",
+            str(cert),
+            "-days",
+            "1",
+            "-nodes",
+            "-subj",
+            "/CN=spark-logs-oneline",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    one_line = "".join(cert.read_text().splitlines())
+    monkeypatch.setenv("SPARK_LOGS_CA_PEM", one_line)
+    monkeypatch.delenv("SPARK_LOGS_CA_CERT", raising=False)
+    subjects = [str(item.get("subject", "")) for item in ssl_context().get_ca_certs()]
+    assert any("spark-logs-oneline" in subject for subject in subjects)
+
+
+def test_private_key_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPARK_LOGS_CA_PEM", "-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----")
+    with pytest.raises(ClientError, match="private key"):
+        ssl_context()
+
+
 def test_invalid_ca_pem_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPARK_LOGS_CA_PEM", "-----BEGIN CERTIFICATE-----\\nnot-a-cert\\n-----END CERTIFICATE-----")
     with pytest.raises(ClientError, match="SPARK_LOGS_CA_PEM"):

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import ssl
 import urllib.error
 import urllib.request
@@ -40,15 +41,36 @@ def get_application_logs(
     return _post(f"/applications/{application_id}/logs/content", payload)
 
 
+def certificate_pem(raw: str) -> str:
+    """Turn a pasted certificate into a PEM block with 64-character lines."""
+    text = raw.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        text = text[1:-1].strip()
+    text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\r", "\n")
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    if "BEGIN CERTIFICATE" not in text and "PRIVATE KEY" in text:
+        raise ClientError("SPARK_LOGS_CA_PEM must be server.pem, not the private key")
+    match = re.search(
+        r"-----BEGIN CERTIFICATE-----(.*)-----END CERTIFICATE-----",
+        text,
+        re.DOTALL,
+    )
+    if not match:
+        raise ClientError("SPARK_LOGS_CA_PEM is not a valid certificate")
+    body = re.sub(r"[^A-Za-z0-9+/=]", "", match.group(1))
+    if not body:
+        raise ClientError("SPARK_LOGS_CA_PEM is not a valid certificate")
+    lines = [body[index : index + 64] for index in range(0, len(body), 64)]
+    return "-----BEGIN CERTIFICATE-----\n" + "\n".join(lines) + "\n-----END CERTIFICATE-----\n"
+
+
 def ssl_context() -> ssl.SSLContext:
     """Trust the default CAs, plus a pasted PEM or a CA file when one is set."""
     context = ssl.create_default_context()
     pem = os.environ.get("SPARK_LOGS_CA_PEM", "").strip()
     if pem:
-        if "\\n" in pem:
-            pem = pem.replace("\\n", "\n")
         try:
-            context.load_verify_locations(cadata=pem)
+            context.load_verify_locations(cadata=certificate_pem(pem))
         except ssl.SSLError as exc:
             raise ClientError("SPARK_LOGS_CA_PEM is not a valid certificate") from exc
         return context

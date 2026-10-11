@@ -11,7 +11,21 @@ count_path = Path(os.environ["KINIT_COUNT"])
 count = int(count_path.read_text()) if count_path.exists() else 0
 count_path.write_text(str(count + 1))
 
-password = sys.stdin.readline().rstrip("\r\n")
+if os.environ.get("KINIT_READ_TTY") == "1":
+    tty = os.open("/dev/tty", os.O_RDWR)
+    os.write(tty, b"Password for test:\n")
+    line = b""
+    while not line.endswith(b"\n"):
+        chunk = os.read(tty, 1)
+        if not chunk:
+            break
+        line += chunk
+    password = line.decode().rstrip("\r\n")
+    os.close(tty)
+else:
+    sys.stdout.write("Password for test:\n")
+    sys.stdout.flush()
+    password = sys.stdin.readline().rstrip("\r\n")
 if password != os.environ["EXPECTED_PASSWORD"]:
     sys.exit(1)
 ccache = sys.argv[sys.argv.index("-c") + 1]

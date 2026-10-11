@@ -178,6 +178,16 @@ def test_kerberos_password_is_not_an_argument(tmp_path: Path) -> None:
     assert count.read_text() == "2"
 
 
+def test_kinit_reads_password_from_its_controlling_terminal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("KINIT_ARGV_LOG", str(tmp_path / "kinit-argv"))
+    monkeypatch.setenv("KINIT_COUNT", str(tmp_path / "kinit-count"))
+    monkeypatch.setenv("EXPECTED_PASSWORD", PASSWORD)
+    monkeypatch.setenv("KINIT_READ_TTY", "1")
+    authenticator = KerberosAuthenticator(kinit_bin=str(FAKES / "kinit"), kdestroy_bin=str(FAKES / "kdestroy"), timeout=5)
+    with authenticator.ticket("alice", PASSWORD) as env:
+        assert env["KRB5CCNAME"].startswith("FILE:")
+
+
 def test_rejected_password_is_not_retried(tmp_path: Path) -> None:
     count = tmp_path / "kinit-count"
     os.environ["KINIT_ARGV_LOG"] = str(tmp_path / "kinit-argv")
