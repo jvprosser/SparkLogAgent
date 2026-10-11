@@ -53,6 +53,18 @@ def _post(service: LogService, path: str, payload: dict, token: str = "token") -
     return service.handle("POST", path, {"Authorization": f"Bearer {token}"}, body)
 
 
+def test_status_does_not_request_a_ticket(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    service = _service(tmp_path, monkeypatch)
+    status, payload = service.handle("GET", "/status", {"Authorization": "Bearer token"}, b"")
+    assert status == 200
+    assert payload["status"] == "ok"
+    assert payload["git_version"]
+    assert service.authenticator.calls == []
+    status, payload = service.handle("GET", "/status", {"Authorization": "Bearer wrong"}, b"")
+    assert status == 401
+    assert payload["error"] == "unauthorized"
+
+
 def test_list_runs_yarn_logs_as_argv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     service = _service(tmp_path, monkeypatch)
     status, payload = _post(

@@ -31,6 +31,6 @@ A direct answer to the user's question, then the evidence, then the recommended 
 
 Enable these History Server tools: `list_applications`, `list_jobs`, `list_stages`, `get_stage`, `list_stage_task_failures`, `list_executors`, `get_executor_summary`, `get_environment`, `list_sql_executions`, `get_sql_execution`, `compare_sql_executions`, `get_job_bottlenecks`, `compare_job_environments`, `compare_job_performance`, `compare_stages`.
 
-Enable both log tools: `list_container_logs` and `get_application_logs`.
+Enable these log tools: `gateway_status`, `list_container_logs`, and `get_application_logs`. `gateway_status` checks the utility connection and prints the git commit.
 
 Leave History Server tools that write configuration, and the AWS recommendation tools, off.

@@ -7,13 +7,23 @@ import sys
 
 from mcp.server.mcpserver import MCPServer
 
-from spark_logs.client import ClientError, get_application_logs, list_container_logs
+from spark_logs.client import ClientError, gateway_status, get_application_logs, list_container_logs
 
 logger = logging.getLogger("sparklogagent.mcp")
 
 
 def create_server() -> MCPServer:
     server = MCPServer("spark-logs")
+
+    @server.tool(name="gateway_status", structured_output=False)
+    def gateway_status_tool() -> str:
+        """Check the connection to the log utility and report git versions.
+
+        Call this to verify the gateway is reachable before listing container
+        logs. Returns this server's git commit, whether the utility accepted
+        the request, and the utility's git commit.
+        """
+        return gateway_status()
 
     @server.tool(name="list_container_logs", structured_output=False)
     def list_container_logs_tool(application_id: str) -> str:

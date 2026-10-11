@@ -10,9 +10,51 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from log_utility.version import git_version
+
 
 class ClientError(Exception):
     pass
+
+
+def gateway_status() -> str:
+    """Report this install's git commit and whether the log utility accepts a status request."""
+    lines = [f"git_version: {git_version()}"]
+    base = os.environ.get("SPARK_LOGS_API_URL", "").rstrip("/")
+    token = os.environ.get("SPARK_LOGS_API_TOKEN", "")
+    if not base.startswith("https://"):
+        return _status(lines, "SPARK_LOGS_API_URL must start with https://")
+    if not token:
+        return _status(lines, "SPARK_LOGS_API_TOKEN is required")
+    request = urllib.request.Request(
+        base + "/status",
+        method="GET",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    try:
+        with urllib.request.urlopen(request, context=ssl_context(), timeout=15) as response:
+            parsed = json.loads(response.read().decode())
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            return _status(lines, "unauthorized")
+        if exc.code in {404, 405}:
+            return _status(lines, "utility has no /status endpoint")
+        return _status(lines, f"HTTP {exc.code}")
+    except urllib.error.URLError as exc:
+        return _status(lines, str(exc.reason))
+    except (TimeoutError, json.JSONDecodeError, ssl.SSLError, ClientError) as exc:
+        return _status(lines, str(exc))
+    if not isinstance(parsed, dict) or parsed.get("status") != "ok":
+        return _status(lines, "unexpected status response")
+    lines.append("gateway: connected")
+    gateway_git = parsed.get("git_version")
+    if isinstance(gateway_git, str) and gateway_git:
+        lines.append(f"gateway_git_version: {gateway_git}")
+    return "\n".join(lines)
+
+
+def _status(lines: list[str], error: str) -> str:
+    return "\n".join([*lines, "gateway: unreachable", f"error: {error}"])
 
 
 def list_container_logs(application_id: str) -> str:

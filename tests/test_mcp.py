@@ -1,11 +1,12 @@
 import asyncio
 import json
 import subprocess
+import urllib.error
 from unittest.mock import patch
 
 import pytest
 
-from spark_logs.client import ClientError, get_application_logs, list_container_logs, ssl_context
+from spark_logs.client import ClientError, gateway_status, get_application_logs, list_container_logs, ssl_context
 from spark_logs.server import create_server
 
 
@@ -127,7 +128,8 @@ def test_client_sends_password_in_body_not_url(monkeypatch: pytest.MonkeyPatch) 
 def test_tool_schema_has_no_password() -> None:
     server = create_server()
     tools = {tool.name: tool for tool in asyncio.run(server.list_tools())}
-    assert set(tools) == {"list_container_logs", "get_application_logs"}
+    assert set(tools) == {"gateway_status", "list_container_logs", "get_application_logs"}
+    assert tools["gateway_status"].input_schema.get("required", []) == []
     encoded = json.dumps(tools["get_application_logs"].input_schema)
     assert "password" not in encoded
     assert "application_id" in encoded
@@ -156,6 +158,53 @@ def test_tool_returns_utility_text(monkeypatch: pytest.MonkeyPatch) -> None:
         )
     text = _tool_text(result)
     assert text == "container listing"
+
+
+def test_gateway_status_reports_both_git_versions(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPARK_LOGS_API_URL", "https://logs.example:8443")
+    monkeypatch.setenv("SPARK_LOGS_API_TOKEN", "token")
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"status": "ok", "git_version": "abc123"}'
+
+    def urlopen(request, context=None, timeout=None):
+        captured["url"] = request.full_url
+        captured["method"] = request.get_method()
+        captured["auth"] = request.get_header("Authorization")
+        captured["data"] = request.data
+        return Response()
+
+    with patch("spark_logs.client.urllib.request.urlopen", urlopen):
+        text = gateway_status()
+    assert captured["url"] == "https://logs.example:8443/status"
+    assert captured["method"] == "GET"
+    assert captured["auth"] == "Bearer token"
+    assert captured["data"] is None
+    assert "git_version: " in text
+    assert "gateway: connected" in text
+    assert "gateway_git_version: abc123" in text
+    assert "token" not in text.split("git_version: ", 1)[-1].split("\n", 1)[0]
+
+
+def test_gateway_status_reports_a_connection_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SPARK_LOGS_API_URL", "https://logs.example:8443")
+    monkeypatch.setenv("SPARK_LOGS_API_TOKEN", "token")
+
+    def urlopen(request, context=None, timeout=None):
+        raise urllib.error.URLError("connection refused")
+
+    with patch("spark_logs.client.urllib.request.urlopen", urlopen):
+        text = gateway_status()
+    assert "gateway: unreachable" in text
+    assert "connection refused" in text
 
 
 def _tool_text(result: object) -> str:

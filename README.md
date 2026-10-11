@@ -76,11 +76,11 @@ In Agent Studio, open Tools Catalog, then MCP Servers, and register each JSON fi
 - [mcp/spark-history-server.json](mcp/spark-history-server.json) is pinned to commit `e058c872832c3d5e76ddf5e35cb347ad96b6e86e`. Set `SHS_SERVERS__LOCAL__URL` to the History Server. Fill the auth variables when that server requires them.
 - [mcp/spark-logs.json](mcp/spark-logs.json) points at this repository. Set `SPARK_LOGS_API_URL` to the utility's `https://` address and `SPARK_LOGS_API_TOKEN` to the same token the utility uses. For a certificate the workbench does not already trust, paste `server.pem` into `SPARK_LOGS_CA_PEM`. Use `SPARK_LOGS_CA_CERT` instead when that file is already on the workbench. `WORKLOAD_USER` and `WORKLOAD_PASSWORD` are the on-prem Kerberos principal and password.
 
-Enable the History Server tools and both log tools named in [agent/spark_advisor.md](agent/spark_advisor.md). Leave History Server tools that write configuration, and the AWS recommendation tools, off.
+Enable the History Server tools and the log tools named in [agent/spark_advisor.md](agent/spark_advisor.md), including `gateway_status`. Leave History Server tools that write configuration, and the AWS recommendation tools, off. `gateway_status` reports the git commit Agent Studio is running and whether the utility accepted the connection.
 
 ## Configuring an Agent
 
-Paste these fields into the CrewAI agent in Agent Studio. Attach the spark-logs MCP server and enable `list_container_logs` and `get_application_logs`.
+Paste these fields into the CrewAI agent in Agent Studio. Attach the spark-logs MCP server and enable `gateway_status`, `list_container_logs`, and `get_application_logs`.
 
 ### Name
 

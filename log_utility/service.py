@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from log_utility.auth import AuthError
+from log_utility.version import git_version
 from log_utility.yarn import YarnError, YarnRunner, YarnTimeout
 
 logger = logging.getLogger("sparklogagent.utility")
@@ -42,6 +43,10 @@ class LogService:
         self._slots = threading.BoundedSemaphore(concurrency)
 
     def handle(self, method: str, path: str, headers: Mapping[str, str], body: bytes) -> tuple[int, dict[str, Any]]:
+        if method == "GET" and path.split("?", 1)[0] == "/status":
+            if not _bearer_ok(headers.get("Authorization", ""), self.token):
+                return 401, {"error": "unauthorized"}
+            return 200, {"status": "ok", "git_version": git_version()}
         if method != "POST":
             return 405, {"error": "method not allowed"}
         if not _bearer_ok(headers.get("Authorization", ""), self.token):

@@ -29,7 +29,8 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(status, payload)
 
     def do_GET(self) -> None:  # noqa: N802
-        self._send(405, {"error": "method not allowed"})
+        status, payload = self.server.service.handle("GET", self.path, self.headers, b"")
+        self._send(status, payload)
 
     def log_message(self, format: str, *args: object) -> None:
         return
